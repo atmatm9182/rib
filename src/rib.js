@@ -26,7 +26,7 @@ class State {
      */
     update(value) {
         if (typeof value === "function") {
-            this.#value = value();
+            this.#value = value(this);
         } else {
             this.#value = value;
         }

@@ -1,17 +1,29 @@
+/**
+ * @template T
+ */
 class State {
     /** @type {Element} */
     #observers = [];
-    /** @type {any} */
+    /** @type {T} */
     #value;
 
+    /**
+     * @param {T} value
+     */
     constructor(value) {
         this.#value = value;
     }
 
+    /**
+     * @returns {T}
+     */
     get() {
         return this.#value;
     }
 
+    /**
+     * @param {T} value
+     */
     update(value) {
         if (typeof value === "function") {
             this.#value = value();
@@ -24,13 +36,16 @@ class State {
         }
     }
 
+    /**
+     * @param {Element} obs
+     */
     addObserver(obs) {
         this.#observers.push(obs);
     }
 }
 
 /**
- * @typedef {Element | string | (() => RibElement) | State} RibElement
+ * @typedef {Element | string | (() => RibElement) | State<unknown>} RibElement
  */
 
 class Element {
@@ -41,10 +56,15 @@ class Element {
     /** @type {{ value: RibElement; toNode: () => Node }[]} */
     #children;
 
+    /**
+     * @param {string} name
+     * @param {(ElementAttribute | ElementAttributeStyle)[]} attrs
+     * @param {RibElement[]} children
+     */
     constructor(name, attrs, children) {
         this.#elem = document.createElement(name);
 
-        this.#children = children.map(morph);
+        this.#children = children.map(ribify);
 
         for (const { toNode } of this.#children) {
             const node = toNode();
@@ -103,16 +123,25 @@ class Element {
         }
     }
 
+    /**
+     * @returns {HTMLElement}
+     */
     get() {
         return this.#elem;
     }
 
+    /**
+     * @param {...State<unknown>} states
+     */
     sub(...states) {
         for (const state of states) {
             state.addObserver(this);
         }
     }
 
+    /**
+     * @param {State<unknown>} state
+     */
     notify(state) {
         for (let i = 0; i < this.#children.length; i++) {
             const { value, toNode } = this.#children[i];
@@ -151,23 +180,50 @@ class Element {
     }
 }
 
+/**
+ * @typedef {{ [string]: string | (() => string) | State<string> }} RibStylesheetDecl
+ */
+
 class ElementAttributeStyle {
+    /** @type {RibStylesheetDecl} */
+    decl;
+
+    /**
+     * @param {RibStylesheetDecl} decl
+     */
     constructor(decl) {
         this.decl = decl;
     }
 }
 
+/**
+ * @param {RibStylesheetDecl} decl
+ * @returns {ElementAttributeStyle}
+ */
 function style(decl) {
     return new ElementAttributeStyle(decl);
 }
 
 class ElementAttributeListener {
+    /** @type {string} */
+    event;
+    /** @type {(Event) => void} */
+    callback;
+
+    /**
+     * @param {string} event
+     * @param {(Event) => void} callback
+     */
     constructor(event, callback) {
         this.event = event;
         this.callback = callback;
     }
 }
 
+/**
+ * @param {(Event) => void} callback
+ * @returns {ElementAttributeListener}
+ */
 function onClick(callback) {
     return new ElementAttributeListener("click", callback);
 }
@@ -175,14 +231,21 @@ function onClick(callback) {
 class ElementAttribute {
     /** @type {string} */
     name;
-    /** @type {unknown} */
+    /** @type {State<string> | () => string} */
     value;
 
+    /**
+     * @param {string} name
+     * @param {State<string> | () => string} value
+     */
     constructor(name, value) {
         this.name = name;
         this.value = value;
     }
 
+    /**
+     * @returns {string}
+     */
     get() {
         if (this.value instanceof State) {
             return this.value.get();
@@ -193,32 +256,36 @@ class ElementAttribute {
     }
 }
 
-function morph(x) {
-    if (typeof x === "string") {
-        const node = document.createTextNode(x);
-        return { value: x, toNode: () => node };
+/**
+ * @param {RibElement} rib
+ * @returns {{ value: RibElement; toNode: () => Node }}
+ */
+function ribify(rib) {
+    if (typeof rib === "string") {
+        const node = document.createTextNode(rib);
+        return { value: rib, toNode: () => node };
     }
 
-    if (typeof x === "function") {
+    if (typeof rib === "function") {
         return {
-            value: x,
-            toNode: () => morph(x()),
+            value: rib,
+            toNode: () => morph(rib()),
         };
     }
 
-    if (x instanceof State) {
+    if (rib instanceof State) {
         const node = document.createTextNode("");
         return {
-            value: x,
+            value: rib,
             toNode: () => {
-                node.textContent = x.get();
+                node.textContent = rib.get();
                 return node;
             },
         };
     }
 
-    if (x instanceof Element) {
-        return { value: x, toNode: () => x.get() };
+    if (rib instanceof Element) {
+        return { value: rib, toNode: () => rib.get() };
     }
 
     throw new Error(`Unexpected type of argument to morph`);

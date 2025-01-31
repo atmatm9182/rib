@@ -39,6 +39,17 @@ class State {
     }
 
     /**
+     * @param {(v: T) => undefined} callback
+     */
+    modify(callback) {
+        callback(this.#value);
+
+        for (const obs of this.#observers) {
+            obs.notify(this);
+        }
+    }
+
+    /**
      * @param {RibElement} obs
      */
     addObserver(obs) {

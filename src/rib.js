@@ -1,8 +1,10 @@
+// @ts-check
+
 /**
  * @template T
  */
 class State {
-    /** @type {Element} */
+    /** @type {RibElement[]} */
     #observers = [];
     /** @type {T} */
     #value;
@@ -26,7 +28,7 @@ class State {
      */
     update(value) {
         if (typeof value === "function") {
-            this.#value = value(this);
+            this.#value = value(this.#value);
         } else {
             this.#value = value;
         }
@@ -37,7 +39,7 @@ class State {
     }
 
     /**
-     * @param {Element} obs
+     * @param {RibElement} obs
      */
     addObserver(obs) {
         this.#observers.push(obs);
@@ -45,30 +47,47 @@ class State {
 }
 
 /**
- * @typedef {Element | string | (() => RibElement) | State<unknown>} RibElement
+ * @typedef {RibElement | string | (() => RibElement | RibElement[]) | State<any>} RibElementLike
+ * @typedef {{ value: RibElementLike; toNode: () => Node | Node[] }} MorphRibElement
+ * @typedef {string | RibElementAttribute | RibElementAttributeStyle} RibElementAttributeLike
  */
 
-class Element {
+class RibElement {
     /** @type {HTMLElement} */
     #elem;
-    /** @type {(ElementAttribute | ElementAttributeStyle)[]} */
+    /** @type {(RibElementAttribute | RibElementAttributeStyle)[]} */
     #attrs;
-    /** @type {{ value: RibElement; toNode: () => Node }[]} */
+    /** @type {MorphRibElement[]} */
     #children;
+    /** @type {Map<number, number>} */
+    #multiNodes = new Map();
+    /** @type {Map<number, number>} */
+    #indexTranslation = new Map();
 
     /**
      * @param {string} name
-     * @param {(ElementAttribute | ElementAttributeStyle)[]} attrs
-     * @param {RibElement[]} children
+     * @param {RibElementAttributeLike[]} attrs
+     * @param {RibElementLike[]} children
      */
     constructor(name, attrs, children) {
         this.#elem = document.createElement(name);
 
         this.#children = children.map(ribify);
 
-        for (const { toNode } of this.#children) {
-            const node = toNode();
-            this.#elem.appendChild(toNode());
+        let nodeIdx = 0;
+        for (let i = 0; i < this.#children.length; i++) {
+            const node = this.#children[i].toNode();
+
+            this.#indexTranslation.set(i, nodeIdx);
+
+            if (Array.isArray(node)) {
+                nodeIdx += node.length;
+                this.#elem.append(...node);
+                this.#multiNodes.set(i, node.length);
+            } else {
+                this.#elem.appendChild(node);
+                nodeIdx++;
+            }
         }
 
         this.#attrs = [];
@@ -78,14 +97,14 @@ class Element {
             if (typeof attr === "string") {
                 const parts = attr.split("=");
                 if (parts.length === 1) {
-                    this.#elem.setAttribute(parts[0], true);
+                    this.#elem.setAttribute(parts[0], "");
                 } else if (parts.length === 2) {
                     this.#elem.setAttribute(parts[0], parts[1]);
                 } else {
                     throw new Error(`Attribute '${attr}' is in invalid format`);
                 }
             } else if (typeof attr === "object") {
-                if (attr instanceof ElementAttribute) {
+                if (attr instanceof RibElementAttribute) {
                     this.#attrs.push(attr);
 
                     let value;
@@ -98,9 +117,9 @@ class Element {
                     }
 
                     this.#elem.setAttribute(attr.name, value);
-                } else if (attr instanceof ElementAttributeListener) {
+                } else if (attr instanceof RibElementAttributeListener) {
                     this.#elem.addEventListener(attr.event, attr.callback);
-                } else if (attr instanceof ElementAttributeStyle) {
+                } else if (attr instanceof RibElementAttributeStyle) {
                     this.#attrs.push(attr);
 
                     for (const [name, value] of Object.entries(attr.decl)) {
@@ -131,7 +150,7 @@ class Element {
     }
 
     /**
-     * @param {...State<unknown>} states
+     * @param {...State<any>} states
      */
     sub(...states) {
         for (const state of states) {
@@ -140,21 +159,30 @@ class Element {
     }
 
     /**
-     * @param {State<unknown>} state
+     * @param {State<any>} state
      */
     notify(state) {
         for (let i = 0; i < this.#children.length; i++) {
             const { value, toNode } = this.#children[i];
 
-            if (value instanceof State && value === state) {
-                this.#elem.replaceChild(this.#elem.childNodes[i], toNode());
-            } else if (typeof value === "function") {
-                this.#elem.replaceChild(this.#elem.childNodes[i], toNode());
+            const nodeIdx = this.#indexTranslation.get(i);
+            if (nodeIdx === undefined) {
+                throw new Error(`Missing an index translation for child index ${i}`);
+            }
+
+            if (typeof value === "function" || (value instanceof State && value === state)) {
+                const newNode = toNode();
+
+                if (Array.isArray(newNode)) {
+                    this.#notifyMultipleNode(newNode, i, nodeIdx);
+                } else {
+                    this.#elem.replaceChild(newNode, this.#elem.childNodes[nodeIdx]);
+                }
             }
         }
 
         for (const attr of this.#attrs) {
-            if (attr instanceof ElementAttribute) {
+            if (attr instanceof RibElementAttribute) {
                 const { name, value } = attr;
 
                 if (value instanceof State && value === state) {
@@ -162,7 +190,7 @@ class Element {
                 } else if (typeof value === "function") {
                     this.#elem.setAttribute(name, value());
                 }
-            } else if (attr instanceof ElementAttributeStyle) {
+            } else if (attr instanceof RibElementAttributeStyle) {
                 for (const [name, value] of Object.entries(attr.decl)) {
                     if (typeof value === "string") {
                         this.#elem.style[name] = value;
@@ -178,13 +206,59 @@ class Element {
             }
         }
     }
+
+    /**
+     * @param {Node[]} node
+     * @param {number} i
+     * @param {number} nodeIdx
+     */
+    #notifyMultipleNode(node, i, nodeIdx) {
+        const nodeCount = this.#multiNodes.get(i);
+        this.#multiNodes.set(i, node.length);
+
+        if (nodeCount) {
+            let n;
+            for (n = 0; n < nodeCount; n++) {
+                this.#elem.replaceChild(node[n], this.#elem.childNodes[nodeIdx + n]);
+            }
+
+            const repN = n;
+
+            for (; n < node.length; n++) {
+                this.#elem.appendChild(node[n]);
+            }
+
+            if (n !== repN) {
+                for (let j = i + 1; j < this.#children.length; j++) {
+                    const idx = this.#indexTranslation.get(j);
+                    if (idx === undefined) {
+                        throw new Error(`Missing an index translation for child index ${j}`);
+                    }
+
+                    this.#indexTranslation.set(j, idx + n);
+                }
+            }
+        } else {
+            this.#elem.append(...node);
+
+            for (let j = i + 1; j < this.#children.length; j++) {
+                const idx = this.#indexTranslation.get(j);
+                if (idx === undefined) {
+                    throw new Error(`Missing an index translation for child index ${j}`);
+                }
+
+                this.#indexTranslation.set(j, idx + node.length);
+            }
+        }
+
+    }
 }
 
 /**
- * @typedef {{ [string]: string | (() => string) | State<string> }} RibStylesheetDecl
+ * @typedef {{ [name: string]: string | (() => string) | State<string> }} RibStylesheetDecl
  */
 
-class ElementAttributeStyle {
+class RibElementAttributeStyle {
     /** @type {RibStylesheetDecl} */
     decl;
 
@@ -198,21 +272,21 @@ class ElementAttributeStyle {
 
 /**
  * @param {RibStylesheetDecl} decl
- * @returns {ElementAttributeStyle}
+ * @returns {RibElementAttributeStyle}
  */
 function style(decl) {
-    return new ElementAttributeStyle(decl);
+    return new RibElementAttributeStyle(decl);
 }
 
-class ElementAttributeListener {
+class RibElementAttributeListener {
     /** @type {string} */
     event;
-    /** @type {(Event) => void} */
+    /** @type {(ev: Event) => void} */
     callback;
 
     /**
      * @param {string} event
-     * @param {(Event) => void} callback
+     * @param {(ev: Event) => void} callback
      */
     constructor(event, callback) {
         this.event = event;
@@ -221,22 +295,22 @@ class ElementAttributeListener {
 }
 
 /**
- * @param {(Event) => void} callback
- * @returns {ElementAttributeListener}
+ * @param {(ev: Event) => void} callback
+ * @returns {RibElementAttributeListener}
  */
 function onClick(callback) {
-    return new ElementAttributeListener("click", callback);
+    return new RibElementAttributeListener("click", callback);
 }
 
-class ElementAttribute {
+class RibElementAttribute {
     /** @type {string} */
     name;
-    /** @type {State<string> | () => string} */
+    /** @type {State<string> | (() => string)} */
     value;
 
     /**
      * @param {string} name
-     * @param {State<string> | () => string} value
+     * @param {State<string> | (() => string)} value
      */
     constructor(name, value) {
         this.name = name;
@@ -257,11 +331,11 @@ class ElementAttribute {
 }
 
 /**
- * @param {RibElement} rib
- * @returns {{ value: RibElement; toNode: () => Node }}
+ * @param {RibElementLike} rib
+ * @returns {MorphRibElement}
  */
 function ribify(rib) {
-    if (typeof rib === "string") {
+    if (typeof rib === "string" || typeof rib === "number") {
         const node = document.createTextNode(rib);
         return { value: rib, toNode: () => node };
     }
@@ -269,7 +343,14 @@ function ribify(rib) {
     if (typeof rib === "function") {
         return {
             value: rib,
-            toNode: () => morph(rib()),
+            toNode: () => {
+                const ribs = rib();
+                if (Array.isArray(ribs)) {
+                    return ribs.flatMap((r) => ribify(r).toNode());
+                }
+
+                return ribify(ribs).toNode();
+            },
         };
     }
 
@@ -284,9 +365,9 @@ function ribify(rib) {
         };
     }
 
-    if (rib instanceof Element) {
+    if (rib instanceof RibElement) {
         return { value: rib, toNode: () => rib.get() };
     }
 
-    throw new Error(`Unexpected type of argument to morph`);
+    throw new Error(`Unexpected type of argument to ribify: ${typeof rib} (${rib})`);
 }

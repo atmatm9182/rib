@@ -3,33 +3,6 @@ function elem(name, deps, attrs, ...children) {
         elem.sub(...deps);
         return elem;
 }
-function html(deps, attrs, ...children) {
-        return elem("html", deps, attrs, ...children);
-}
-function base(deps, attrs, ...children) {
-        return elem("base", deps, attrs, ...children);
-}
-function head(deps, attrs, ...children) {
-        return elem("head", deps, attrs, ...children);
-}
-function link(deps, attrs, ...children) {
-        return elem("link", deps, attrs, ...children);
-}
-function meta(deps, attrs, ...children) {
-        return elem("meta", deps, attrs, ...children);
-}
-function script(deps, attrs, ...children) {
-        return elem("script", deps, attrs, ...children);
-}
-function style(deps, attrs, ...children) {
-        return elem("style", deps, attrs, ...children);
-}
-function title(deps, attrs, ...children) {
-        return elem("title", deps, attrs, ...children);
-}
-function body(deps, attrs, ...children) {
-        return elem("body", deps, attrs, ...children);
-}
 function address(deps, attrs, ...children) {
         return elem("address", deps, attrs, ...children);
 }
@@ -198,9 +171,6 @@ function time(deps, attrs, ...children) {
 function u(deps, attrs, ...children) {
         return elem("u", deps, attrs, ...children);
 }
-function var(deps, attrs, ...children) {
-        return elem("var", deps, attrs, ...children);
-}
 function wbr(deps, attrs, ...children) {
         return elem("wbr", deps, attrs, ...children);
 }
@@ -245,9 +215,6 @@ function svg(deps, attrs, ...children) {
 }
 function canvas(deps, attrs, ...children) {
         return elem("canvas", deps, attrs, ...children);
-}
-function noscript(deps, attrs, ...children) {
-        return elem("noscript", deps, attrs, ...children);
 }
 function del(deps, attrs, ...children) {
         return elem("del", deps, attrs, ...children);
@@ -377,9 +344,6 @@ function image(deps, attrs, ...children) {
 }
 function keygen(deps, attrs, ...children) {
         return elem("keygen", deps, attrs, ...children);
-}
-function marquee(deps, attrs, ...children) {
-        return elem("marquee", deps, attrs, ...children);
 }
 function menuitem(deps, attrs, ...children) {
         return elem("menuitem", deps, attrs, ...children);

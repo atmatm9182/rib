@@ -3,8 +3,7 @@
 set -e
 
 tagfile=`cat ./tags.txt`
-nospace=${tagfile//\"/}
-tags=(${nospace//,/ })
+tags=(${tagfile//,/ })
 
 result=$(cat <<EOF
 function elem(name, deps, attrs, ...children) {

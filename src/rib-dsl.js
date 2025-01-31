@@ -1,5 +1,5 @@
 function elem(name, deps, attrs, ...children) {
-        const elem = new Element(name, attrs, children);
+        const elem = new RibElement(name, attrs, children);
         elem.sub(...deps);
         return elem;
 }

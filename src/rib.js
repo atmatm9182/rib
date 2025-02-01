@@ -103,7 +103,6 @@ class RibElement {
 
         this.#attrs = [];
 
-        // TODO: better error messages here
         for (const attr of attrs) {
             if (typeof attr === "string") {
                 const parts = attr.split("=");
@@ -124,7 +123,7 @@ class RibElement {
                     } else if (attr.value instanceof State) {
                         value = attr.value.get();
                     } else {
-                        throw new Error("foo");
+                        throw new Error(`Unexpected type of value of RibElementAttribute: expected a function, or a State, but got ${typeof attr.value}`);
                     }
 
                     this.#elem.setAttribute(attr.name, value);
@@ -141,7 +140,7 @@ class RibElement {
                         } else if (value instanceof State) {
                             this.#elem.style[name] = value.get();
                         } else {
-                            throw new Error("bar");
+                            throw new Error(`Unexpected type of value of RibElementAttributeStyle: expected a string, function, or a State, but got ${typeof attr.value}`);
                         }
                     }
                 } else {

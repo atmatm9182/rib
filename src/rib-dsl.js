@@ -1,4 +1,8 @@
 function elem(name, deps, attrs, ...children) {
+        if (typeof deps === "string" || typeof attrs === "undefined") {
+                return new RibElement(name, [], deps);
+        }
+
         const elem = new RibElement(name, attrs, children);
         elem.sub(...deps);
         return elem;

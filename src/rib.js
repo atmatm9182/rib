@@ -140,7 +140,7 @@ class RibElement {
                         } else if (value instanceof State) {
                             this.#elem.style[name] = value.get();
                         } else {
-                            throw new Error(`Unexpected type of value of RibElementAttributeStyle: expected a string, function, or a State, but got ${typeof attr.value}`);
+                            throw new Error(`Unexpected type of value of RibElementAttributeStyle: expected a string, function, or a State, but got ${typeof value}`);
                         }
                     }
                 } else {

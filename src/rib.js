@@ -76,12 +76,16 @@ class RibElement {
     #indexTranslation = new Map();
 
     /**
-     * @param {string} name
+     * @param {string | HTMLElement} init
      * @param {RibElementAttributeLike[]} attrs
      * @param {RibElementLike[]} children
      */
-    constructor(name, attrs, children) {
-        this.#elem = document.createElement(name);
+    constructor(init, attrs, children) {
+        if (typeof init === "string") {
+            this.#elem = document.createElement(init);
+        } else {
+            this.#elem = init;
+        }
 
         this.#children = children.map(ribify);
 

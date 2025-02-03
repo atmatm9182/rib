@@ -1,9 +1,9 @@
-function elem(name, deps, attrs, ...children) {
+function elem(init, deps, attrs, ...children) {
         if (typeof deps === "string" || typeof attrs === "undefined") {
-                return new RibElement(name, [], [deps]);
+                return new RibElement(init, [], [deps]);
         }
 
-        const elem = new RibElement(name, attrs, children);
+        const elem = new RibElement(init, attrs, children);
         elem.sub(...deps);
         return elem;
 }

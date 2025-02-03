@@ -66,7 +66,7 @@ class State {
 class RibElement {
     /** @type {HTMLElement} */
     #elem;
-    /** @type {(RibElementAttribute | RibElementAttributeStyle)[]} */
+    /** @type {RibElementAttributeLike[]} */
     #attrs;
     /** @type {MorphRibElement[]} */
     #children;
@@ -107,9 +107,9 @@ class RibElement {
             if (typeof attr === "string") {
                 const parts = attr.split("=");
                 if (parts.length === 1) {
-                    this.#elem.setAttribute(parts[0], "");
+                    this.#setAttribute(parts[0], "");
                 } else if (parts.length === 2) {
-                    this.#elem.setAttribute(parts[0], parts[1]);
+                    this.#setAttribute(parts[0], parts[1]);
                 } else {
                     throw new Error(`Attribute '${attr}' is in invalid format`);
                 }
@@ -126,7 +126,7 @@ class RibElement {
                         throw new Error(`Unexpected type of value of RibElementAttribute: expected a function, or a State, but got ${typeof attr.value}`);
                     }
 
-                    this.#elem.setAttribute(attr.name, value);
+                    this.#setAttribute(attr.name, value);
                 } else if (attr instanceof RibElementAttributeListener) {
                     this.#elem.addEventListener(attr.event, attr.callback);
                 } else if (attr instanceof RibElementAttributeStyle) {
@@ -196,9 +196,9 @@ class RibElement {
                 const { name, value } = attr;
 
                 if (value instanceof State && value === state) {
-                    this.#elem.setAttribute(name, value.get());
+                    this.#setAttribute(name, value.get());
                 } else if (typeof value === "function") {
-                    this.#elem.setAttribute(name, value());
+                    this.#setAttribute(name, value());
                 }
             } else if (attr instanceof RibElementAttributeStyle) {
                 for (const [name, value] of Object.entries(attr.decl)) {
@@ -207,13 +207,24 @@ class RibElement {
                     } else if (typeof value === "function") {
                         this.#elem.style[name] = value();
                     } else if (value instanceof State && value === state) {
-                        console.log({ name, value });
                         this.#elem.style[name] = value.get();
                     } else {
                         throw new Error("unreachable");
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * @param {string} name
+     * @param {string} value
+     */
+    #setAttribute(name, value) {
+        if (name in this.#elem) {
+            this.#elem[name] = value;
+        } else {
+            this.#elem.setAttribute(name, value);
         }
     }
 

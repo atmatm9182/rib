@@ -341,6 +341,14 @@ class RibElementAttribute {
 }
 
 /**
+ * @param {string} name
+ * @param {State<string> | (() => string)} value
+ */
+function attr(name, value) {
+    return new RibElementAttribute(name, value);
+}
+
+/**
  * @param {RibElementLike} rib
  * @returns {MorphRibElement}
  */

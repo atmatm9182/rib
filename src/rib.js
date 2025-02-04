@@ -59,7 +59,7 @@ class State {
 
 /**
  * @typedef {RibElement | string | (() => RibElement | RibElement[]) | State<any>} RibElementLike
- * @typedef {{ value: RibElementLike; toNode: () => Node | Node[] }} MorphRibElement
+ * @typedef {{ value: RibElementLike; toNode: (() => Node) | (() => Node[]) }} MorphRibElement
  * @typedef {string | RibElementAttribute | RibElementAttributeStyle} RibElementAttributeLike
  */
 
@@ -244,29 +244,7 @@ class RibElement {
         const nodeCount = this.#multiNodes.get(i);
         this.#multiNodes.set(i, node.length);
 
-        if (nodeCount) {
-            let n;
-            for (n = 0; n < nodeCount; n++) {
-                this.#elem.replaceChild(node[n], this.#elem.childNodes[nodeIdx + n]);
-            }
-
-            const repN = n;
-
-            for (; n < node.length; n++) {
-                this.#elem.appendChild(node[n]);
-            }
-
-            if (n !== repN) {
-                for (let j = i + 1; j < this.#children.length; j++) {
-                    const idx = this.#indexTranslation.get(j);
-                    if (idx === undefined) {
-                        throw new Error(`Missing an index translation for child index ${j}`);
-                    }
-
-                    this.#indexTranslation.set(j, idx + n);
-                }
-            }
-        } else {
+        if (!nodeCount) {
             this.#elem.append(...node);
 
             for (let j = i + 1; j < this.#children.length; j++) {
@@ -277,8 +255,51 @@ class RibElement {
 
                 this.#indexTranslation.set(j, idx + node.length);
             }
+
+            return;
         }
 
+        if (nodeCount === node.length) {
+            for (let n = 0; n < nodeCount; n++) {
+                this.#elem.replaceChild(node[n], this.#elem.childNodes[nodeIdx + n]);
+            }
+        } else if (node.length > nodeCount) {
+            let n;
+            for (n = 0; n < nodeCount; n++) {
+                this.#elem.replaceChild(node[n], this.#elem.childNodes[nodeIdx + n]);
+            }
+
+            for (; n < node.length; n++) {
+                this.#elem.appendChild(node[n]);
+            }
+
+            for (let j = i + 1; j < this.#children.length; j++) {
+                const idx = this.#indexTranslation.get(j);
+                if (idx === undefined) {
+                    throw new Error(`Missing an index translation for child index ${j}`);
+                }
+
+                this.#indexTranslation.set(j, idx + node.length - nodeCount);
+            }
+        } else {
+            let n;
+            for (n = 0; n < node.length; n++) {
+                this.#elem.replaceChild(node[n], this.#elem.childNodes[nodeIdx + n]);
+            }
+
+            for (; n < nodeCount; n++) {
+                this.#elem.removeChild(this.#elem.childNodes[n]);
+            }
+
+            for (let j = i + 1; j < this.#children.length; j++) {
+                const idx = this.#indexTranslation.get(j);
+                if (idx === undefined) {
+                    throw new Error(`Missing an index translation for child index ${j}`);
+                }
+
+                this.#indexTranslation.set(j, idx - (nodeCount - node.length));
+            }
+        }
     }
 }
 

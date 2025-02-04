@@ -81,15 +81,18 @@ class RibElement {
      * @param {RibElementLike[]} children
      */
     constructor(init, attrs, children) {
+        let nodeIdx;
+
         if (typeof init === "string") {
             this.#elem = document.createElement(init);
+            nodeIdx = 0;
         } else {
             this.#elem = init;
+            nodeIdx = init.childNodes.length;
         }
 
         this.#children = children.map(ribify);
 
-        let nodeIdx = 0;
         for (let i = 0; i < this.#children.length; i++) {
             const node = this.#children[i].toNode();
 
